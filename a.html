@@ -1,0 +1,238 @@
+<p>最近开始学习linux ，看完马哥的liniu课程关于umask的这个部分， 写这篇博客希望加深下我对umask的理解 和对umask不太清楚的博友一些帮助。</p>
+<h2><span style="color: #00ff00;">1 umask 是什么</span></h2>
+<p>当我们登录系统之后创建一个文件是会有一个默认权限的，那么这个权限是怎么来的呢？这就是umask干的事情。umask用于设置用户创建文件或者目录的默认权限，umask设置的是权限的&ldquo;补码&rdquo;，而我们常用chmod设置的是文件权限码。一般在/etc/profile、$ [HOME]/.bash_profile或$[HOME]/.profile中设置umask值。</p>
+<h2><span style="color: #00ff00;">2 umask是用来做什么的</span></h2>
+<p>默认情况下的umask值是022(可以用umask命令查看），此时你建立的文件默认权限是644(6-0,6-2,6-2)，建立的目录的默认 权限是755(7-0,7-2,7-2)，可以用ls -l验证一下,　现在应该知道umask的用途了吧，它是为了控制默认权限的。</p>
+<div class="cnblogs_code">
+<pre>[root@bogon test]# id
+uid=0(root) gid=0(root) groups=0(root) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+[root@bogon test]# umask
+0022
+[root@bogon test]# touch a.txt
+[root@bogon test]# ls -l
+total 0
+-rw-r--r--. 1 root root 0 Jul  3 00:40 a.txt
+[root@bogon test]# mkdir b
+[root@bogon test]# ls -l
+total 0
+-rw-r--r--. 1 root root 0 Jul  3 00:40 a.txt
+drwxr-xr-x. 2 root root 6 Jul  3 00:41 b</pre>
+</div>
+<p>从上面可以看到， root 的umask是022(第一个0 代表特殊权限位，这里先不考虑)， 创建的文件默认权限是644，创建的目录是755。</p>
+<h2><span style="color: #00ff00;">基本权限讲解</span></h2>
+<p>讲解umask的使用之前， 需要先讲解下文件的基本权限</p>
+<table style="border-color: #35f30b; border-width: 0px; height: 121px; width: 560px;" border="0"><caption>linux文件权限</caption>
+<tbody>
+<tr>
+<td>&nbsp;</td>
+<td>r</td>
+<td>w</td>
+<td>x</td>
+</tr>
+<tr>
+<td>目录</td>
+<td>&nbsp;可以查看文件内容</td>
+<td>&nbsp;可以修改文件</td>
+<td>&nbsp;可以把文件启动为一个运行的程序</td>
+</tr>
+<tr>
+<td>文件</td>
+<td>&nbsp;可以<span style="font-family: Calibri;">ls</span><span style="font-family: 宋体;">查看目录中的文件名</span></td>
+<td>&nbsp;可以在目录中创建或者删除文件（只有w权限没法创建，需要x配合）</td>
+<td>&nbsp;可以使用<span style="font-family: Calibri;">cd </span><span style="font-family: 宋体;">进入这个目录 </span><span style="font-family: Calibri;">ls-l</span><span style="font-family: 宋体;">显示目录内文件的元数据的信息</span></td>
+</tr>
+</tbody>
+</table>
+<h2>umask计算权限</h2>
+<p>对于文件和目录来说， 最大的权限其实都是777，但是执行权限对于文件来说，很可怕，而对目录来说执行权限是个基本权限。所以默认目录的最大权限是777，而文件的默认最大权限就是666。</p>
+<p>正常计算过程：&nbsp;</p>
+<ul>
+<li>文件：666-umask</li>
+<li>目录：777-umask</li>
+</ul>
+<p>这个计算其实是这样说的</p>
+<p>对于root用户的umask=022这个来说，777权限二进制码就是（111）（111）（111），022权限二进制码为（000）（010）（010）</p>
+<ul>
+<li>所有权限二进制的1:代表有这个权限</li>
+<li>umask二进制1：代表要去掉这个权限，不管你原来啥权限，你最终一定没有这个权限。</li>
+<li>umask二进制的0：代表我不关心对应为的权限，你原来是啥就是啥。</li>
+</ul>
+<table style="height: 178px; width: 847px;" border="0"><caption>umask为002的目录默认权限计算方法</caption>
+<tbody>
+<tr>
+<td>&nbsp;</td>
+<td>所有者 r</td>
+<td>所有者 w</td>
+<td>所有者 x</td>
+<td>所在组 r</td>
+<td>所在组 w</td>
+<td>所在组 x</td>
+<td>其他 r</td>
+<td>其他 w</td>
+<td>其他 x&nbsp;</td>
+</tr>
+<tr>
+<td>所有权限777</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr>
+<td>umask掩码002</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>计算后的值</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<table border="0"><caption>umask为002的目录默认权限计算方法</caption>
+<tbody>
+<tr>
+<td>&nbsp;</td>
+<td>所有者 r</td>
+<td>所有者 w</td>
+<td>所有者 x</td>
+<td>所在组 r</td>
+<td>所在组 w</td>
+<td>所在组 x</td>
+<td>其他 r</td>
+<td>其他 w</td>
+<td>其他 x&nbsp;</td>
+</tr>
+<tr>
+<td>所有权限777</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr>
+<td>umask掩码002</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>计算后的值</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>计算描述</td>
+<td>umask为0，代表不关心对应位的权限，你是啥就是啥。</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>但是umask为1，就会屏蔽掉掉你的权限，不管你有没有对应的权限，最终为0</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<p>所以为了防止创建文件带有执行权限，文件默认权限是<span style="font-family: Calibri;">666-umask 【文件默认全码是666， 执行权限位默认没有的】</span>目录的默认权限是<span style="font-family: Calibri;">777-umask</span></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p><span style="font-family: Calibri;">上面提到，执行权限对文件来说，很可怕，系统不会给默认创建的文件设置执行权限的，所以不管你umask对执行权限为是0，还是1,都是无效的，我都要把执行权限去掉。</span></p>
+<p>&nbsp;</p>
+<p><span style="font-family: Calibri;">目录的计算：&nbsp;</span></p>
+<p><span style="font-family: Calibri;">上面创建的文件a.txt 默认的权限是644怎么算的呢： 666-022=644(相应位减法)</span></p>
+<p><span style="font-family: Calibri;"><span style="font-family: Calibri;">上面创建的目录b 默认的权限是655怎么算的呢： 777-022=755(相应位减法)</span></span></p>
+<p><span style="font-family: Calibri;"><span style="font-family: Calibri;">我们试着修改下默认权限</span></span></p>
+<p>&nbsp;</p>
+<div class="cnblogs_code">
+<pre>[root@bogon test]# umask 023
+[root@bogon test]# umask
+0023
+[root@bogon test]# </pre>
+</div>
+<p>&nbsp;</p>
+<p>这个时候umask 的值就是023啦。</p>
+<p>如果创建一个文件默认权限就是666-023=643？</p>
+<p>如果创建一个目录默认权限就是777-023=754？</p>
+<div class="cnblogs_code">
+<pre>[root@bogon test]# touch c.txt
+[root@bogon test]# mkdir d
+[root@bogon test]# ls -l
+total 0
+-rw-r--r--. 1 root root 0 Jul  3 00:40 a.txt
+drwxr-xr-x. 2 root root 6 Jul  3 00:41 b
+-rw-r--r--. 1 root root 0 Jul  3 00:52 c.txt
+drwxr-xr--. 2 root root 6 Jul  3 00:52 d</pre>
+</div>
+<p>通过上面的执行发现： umask 是023的时候，文件的默认权限是644， 目录的默认权限是754。这是因为创建一个文件， 系统默认是不给于它执行权限的。这样是文件全码666和目录全码777的原因。当我们设置umsk为023的时候 ，经计算（666-023=643）， 系统发现有执行权限，就将你的权限值加1， 也就是3 +1= 4。 当然我们可以通过chmod a+x ， u+x ,g+x ,o+x 给我们创建的文件添加执行权限。</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<h2><span style="color: #00ff00;">umask的修改</span></h2>
+<p><span style="color: #00ff00;"><span style="color: #000000;">umask 的修改分2中， 临时修改的和永久修改的</span><br /></span></p>
+<p><span style="color: #00ff00;"><span style="color: #000000;">临时修改：</span></span></p>
+<p>&nbsp;</p>
+<div class="cnblogs_code">
+<pre>[root@bogon test]# umask 023
+[root@bogon test]# umask
+0023
+[root@bogon test]# </pre>
+</div>
+<p>&nbsp;</p>
+<p>永久修改：</p>
+<p>可以编辑以下文件 添加umask=022。</p>
+<p>交互式登陆的配置生效：</p>
+<p>/etc/profile &lt; /etc/profile.d/*.sh &lt; ~/.bash_profile &lt; ~/.bashrc &lt;/etc/bashrc 【/etc/bashrc的配置最有效 可以覆盖前面的配置】</p>
+<p>非交互登陆的配置生效：</p>
+<p>~/.bashrc &lt; /etc/bashrc &nbsp;&lt; /etc/profile.d/*.sh</p>
+<p>&nbsp;</p>
+<h2><span style="color: #00ff00;">常用umask</span></h2>
+<div class="cnblogs_code">
+<pre>[root@bogon test]# umask 002
+[root@bogon test]# umask
+0002
+[root@bogon test]# umask 022
+[root@bogon test]# umask
+0022</pre>
+</div>
+<p>&nbsp;</p>
