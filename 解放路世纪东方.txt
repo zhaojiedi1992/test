@@ -1,0 +1,9 @@
+dev add
+master add
+ feature1 add
+<<<<<<< Updated upstream
+ fix bug-101
+=======
+
+current work
+>>>>>>> Stashed changes
